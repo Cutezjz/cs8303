@@ -561,30 +561,6 @@ def slam(data, N, num_landmarks, motion_noise, measurement_noise):
 #
 
 def online_slam(data, N, num_landmarks, motion_noise, measurement_noise):
-    # dim = N + num_landmarks
-    # Omega = matrix()
-    # Omega.zero(dim,dim)
-    # Omega.value[0][0] = 1.0
-    # Omega.value[1][1] = 1.0
-    # Xi = matrix()
-    # Xi.zero(dim,1)
-    # Xi.value[0][0] = world_size /2.0
-    # Xi.value[1][0] = world_size /2.0
-
-    # for i in range(len(data)):
-    #     measurement = data[i][0]
-    #     motion = data[i][1]
-    #     for j in range(len(measurement)):
-    #         m = 2 * (1+measurement[j][0])
-    #         for k in range(2):
-    #             Omega.value[k][k] += 1.0/ measurement_noise
-    #             Omega.value[m+k][m+k] += 1.0/ measurement_noise
-    #             Omega.value[k][m+k] += -1.0/ measurement_noise
-    #             Omega.value[m+k][k] += -1.0/ measurement_noise
-    #             Xi.value[k][0] += (-measurement[j][k+1]) / measurement_noise
-    #             Xi.value[m+k][0] += (measurement[j][k+1]) / measurement_noise
-    # mu = Omega.inverse() * Xi
-
     # Set the dimension of the filter
     dim = 2 * (N + num_landmarks)
 
@@ -603,9 +579,6 @@ def online_slam(data, N, num_landmarks, motion_noise, measurement_noise):
 
     for k in range(len(data)):
 
-        # n is the index of the robot pose in the matrix/vector
-        n = k * 2
-
         measurement = data[k][0]
         motion      = data[k][1]
 
@@ -617,29 +590,31 @@ def online_slam(data, N, num_landmarks, motion_noise, measurement_noise):
 
             # update the information maxtrix/vector based on the measurement
             for b in range(2):
-                Omega.value[n+b][n+b] +=  1.0 / measurement_noise
+                Omega.value[b][b] +=  1.0 / measurement_noise
                 Omega.value[m+b][m+b] +=  1.0 / measurement_noise
-                Omega.value[n+b][m+b] += -1.0 / measurement_noise
-                Omega.value[m+b][n+b] += -1.0 / measurement_noise
-                Xi.value[n+b][0]      += -measurement[i][1+b] / measurement_noise
+                Omega.value[b][m+b] += -1.0 / measurement_noise
+                Omega.value[m+b][b] += -1.0 / measurement_noise
+                Xi.value[b][0]      += -measurement[i][1+b] / measurement_noise
                 Xi.value[m+b][0]      +=  measurement[i][1+b] / measurement_noise
-
+        ##expand the list
+        explist = [0,1] + range(4,dim+2)
+        Omega = Omega.expand(dim+2,dim+2, explist,explist)
+        Xi = Xi.expand(dim+2,dim+2, explist, [0])
 
         # update the information maxtrix/vector based on the robot motion
         for b in range(4):
-            Omega.value[n+b][n+b] +=  1.0 / motion_noise
+            Omega.value[b][b] +=  1.0 / motion_noise
         for b in range(2):
-            Omega.value[n+b  ][n+b+2] += -1.0 / motion_noise
-            Omega.value[n+b+2][n+b  ] += -1.0 / motion_noise
-            Xi.value[n+b  ][0]        += -motion[b] / motion_noise
-            Xi.value[n+b+2][0]        +=  motion[b] / motion_noise
+            Omega.value[b  ][b+2] += -1.0 / motion_noise
+            Omega.value[b+2][b  ] += -1.0 / motion_noise
+            Xi.value[b  ][0]        += -motion[b] / motion_noise
+            Xi.value[b+2][0]        +=  motion[b] / motion_noise
 
     # compute best estimate
     mu = Omega.inverse() * Xi
 
     # return the result
     return mu
-
 
 
 

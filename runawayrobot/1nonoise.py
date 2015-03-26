@@ -61,30 +61,66 @@ from matrix import *
 import random
 
 
-# This is the function you have to write. The argument 'measurement' is a
-# single (x, y) point. This function will have to be called multiple
-# times before you have enough information to accurately predict the
-# next position. The OTHER variable that your function returns will be
-# passed back to your function the next time it is called. You can use
-# this to keep track of important information over time.
+def KalmanFilter(x,P,Z,u,F,H,R,I):
+    #code derived from lectures here:
+    #https://www.udacity.com/course/viewer#!/c-cs373/l-48723604/e-48724495/m-48687710
+    #prediction
+    x = (F*x) + u
+    P = F * P * F.transpose()
+
+    #measurement update
+    y  = Z - (H*x)
+    S = (H*P*H.transpose())+R
+    K = P*H.transpose()*S.inverse()
+    x = x + (K*y)
+    P = (I -(K*H))*P
+
+    return(x,P)
+
+
 def estimate_next_pos(measurement, OTHER = None):
     """Estimate the next (x, y) position of the wandering Traxbot
     based on noisy (x, y) measurements."""
     #if other = none this is the first time this is run.
     #will be in the form: x,y,heading, distance, turning-angle
-    if OTHER == None:
+    #based on tutorial here:
+    #http://nbviewer.ipython.org/github/rlabbe/Kalman-and-Bayesian-Filters-in-Python/blob/master/table_of_contents.ipynb
+    dimx = 4 #because if position and velocity in 2 diminsions, it will need to be 4
+    dimz = 2 #if there are only positions xy this should be 2
+
+    ###setting up the matrices
+    posx = measurement[0]
+    posy = measurement[1]
+    I = matrix([[1., 0., 0., 0.], #state transition function
+                [0., 1., 0., 0.],
+                [0., 0., 1., 0.],
+                [0., 0., 0., 1.]])
+    if OTHER == None: #first time this is running
         OTHER = []
+        x = matrix([[posx],[posy],[0],[0]])#this starts the initial measurement
+        P = I
     else:
-        if len(OTHER) == 1:
-            header = 0
-            distance = 0
-            turning_angle = 0
+        x = OTHER[0]
+        P = OTHER[1]
+    Z = matrix([[posx],[posy]])#this starts the initial measurement
+    u = matrix([[0],[0],[0],[0]])
+    F = matrix([[1., 0., 1, 0.], #state transition function
+                [0., 1., 0., 1],
+                [0., 0., 1., 0.],
+                [0., 0., 0., 1.]])
+    H = matrix([[1,0,0,0],[0,1.,0,0]])#meansurement matrix
+    R = matrix([[.00001,0],[.00001,1.]])#uncertainty matrix
+    #I = matrix([[]]).identity(dimx)#identity matrix
 
+    x,P = KalmanFilter(x,P,Z,u,F,H,R,I)
         ##this xy estimate should be
-
+    OTHER = [x, P]
+    xy_estimate = (x.value[0][0], x.value[1][0])
     # You must return xy_estimate (x, y), and OTHER (even if it is None)
     # in this order for grading purposes.
     return xy_estimate, OTHER
+
+
 
 # A helper function you may find useful.
 def distance_between(point1, point2):
@@ -191,4 +227,4 @@ def naive_next_pos(measurement, OTHER = None):
 test_target = robot(2.1, 4.3, 0.5, 2*pi / 34.0, 1.5)
 test_target.set_noise(0.0, 0.0, 0.0)
 
-demo_grading(naive_next_pos, test_target)
+demo_grading(estimate_next_pos, test_target)

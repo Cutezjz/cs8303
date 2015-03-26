@@ -61,68 +61,189 @@ from matrix import *
 import random
 
 
-def KalmanFilter(x,P,Z,u,F,H,R,I):
-    #code derived from lectures here:
-    #https://www.udacity.com/course/viewer#!/c-cs373/l-48723604/e-48724495/m-48687710
-    #prediction
-    x = (F*x) + u
-    P = F * P * F.transpose()
+# def KalmanFilter(x,P,Z,u,F,H,R,I):
+#     #code derived from lectures here:
+#     #https://www.udacity.com/course/viewer#!/c-cs373/l-48723604/e-48724495/m-48687710
+#     #prediction
+#     x = (F*x) + u
+#     P = F * P * F.transpose()
 
-    #measurement update
-    y  = Z - (H*x)
-    S = (H*P*H.transpose())+R
-    K = P*H.transpose()*S.inverse()
-    x = x + (K*y)
-    P = (I -(K*H))*P
+#     #measurement update
+#     y  = Z - (H*x)
+#     S = (H*P*H.transpose())+R
+#     K = P*H.transpose()*S.inverse()
+#     x = x + (K*y)
+#     P = (I -(K*H))*P
 
-    return(x,P)
+#     return(x,P)
 
 
+# def estimate_next_pos(measurement, OTHER = None):
+#     """Estimate the next (x, y) position of the wandering Traxbot
+#     based on noisy (x, y) measurements."""
+#     #if other = none this is the first time this is run.
+#     #will be in the form: x,y,heading, distance, turning-angle
+#     #based on tutorial here:
+#     #http://nbviewer.ipython.org/github/rlabbe/Kalman-and-Bayesian-Filters-in-Python/blob/master/table_of_contents.ipynb
+#     dimx = 4 #because if position and velocity in 2 diminsions, it will need to be 4
+#     dimz = 2 #if there are only positions xy this should be 2
+
+#     ###setting up the matrices
+#     posx = measurement[0]
+#     posy = measurement[1]
+#     I = matrix([[1., 0., 0., 0.], #state transition function
+#                 [0., 1., 0., 0.],
+#                 [0., 0., 1., 0.],
+#                 [0., 0., 0., 1.]])
+#     if OTHER == None: #first time this is running
+#         OTHER = []
+#         x = matrix([[posx],[posy],[0],[0]])#this starts the initial measurement
+#         P = I
+#     else:
+#         x = OTHER[0]
+#         P = OTHER[1]
+#     Z = matrix([[posx],[posy]])#this starts the initial measurement
+#     u = matrix([[0],[0],[0],[0]])
+#     F = matrix([[1., 0., 1, 0.], #state transition function
+#                 [0., 1., 0., 1],
+#                 [0., 0., 1., 0.],
+#                 [0., 0., 0., 1.]])
+#     H = matrix([[1,0,0,0],[0,1.,0,0]])#meansurement matrix
+#     R = matrix([[.00001,0],[.00001,1.]])#uncertainty matrix
+#     #I = matrix([[]]).identity(dimx)#identity matrix
+
+#     x,P = KalmanFilter(x,P,Z,u,F,H,R,I)
+#         ##this xy estimate should be
+#     OTHER = [x, P]
+#     xy_estimate = (x.value[0][0], x.value[1][0])
+#     # You must return xy_estimate (x, y), and OTHER (even if it is None)
+#     # in this order for grading purposes.
+#     return xy_estimate, OTHER
+# """
+# def estimate_next_pos(measurement, OTHER = None):
+#     Estimate the next (x, y) position of the wandering Traxbot
+#     based on noisy (x, y) measurements.
+#     OTHER VECTOR FORM:
+#     [
+#        X
+#        Y
+#        heading
+#     ]
+#     if OTHER == None:
+#         OTHER = []
+#         OTHER.append(measurement[0])
+#         OTHER.append(measurement[1])
+#         xy_estimate = measurement
+#     else:
+#         distance = distance_between((OTHER[0],OTHER[1]), measurement)
+#         heading = acos((measurement[0]-OTHER[0])/distance)
+#         if len(OTHER) == 2:
+#             turn_angle = None
+#             xy_estimate = measurement
+#         else:
+#             turn_angle = -(OTHER[2] - heading)
+
+#             new_bot = robot(measurement[0],measurement[1], heading,turn_angle,distance)
+#             new_bot.set_noise(0.,0.,0.)
+#             new_bot.move_in_circle()
+#             xy_estimate = (new_bot.x,new_bot.y)
+#         OTHER.append(heading)
+#         OTHER[0] = xy_estimate[0]
+#         OTHER[1] = xy_estimate[1]
+
+#     # You must return xy_estimate (x, y), and OTHER (even if it is None)
+#     # in this order for grading purposes.
+#     return xy_estimate, OTHER
+# """
+
+# def estimate_next_pos(measurement, OTHER = None):
+#     """Estimate the next (x, y) position of the wandering Traxbot
+#     based on noisy (x, y) measurements."""
+#     """
+#     OTHER VECTOR FORM:
+#     [
+#        [
+#         X
+#         Y
+#        ]
+#     ]
+#     """
+#     if OTHER == None:
+#         OTHER = []
+#         OTHER.append(measurement)
+#         xy_estimate = measurement
+#     elif len(OTHER) == 1:
+#         OTHER.append(measurement)
+#         xy_estimate = measurement
+#     else:
+#         OTHER.append(measurement)
+#         distance = distance_between(OTHER[0], OTHER[1])
+#         angle = 0
+#         for i in range(2, len(OTHER)):
+#             first = OTHER[i-2]
+#             second = OTHER[i-1]
+#             third = OTHER[i-0]
+#             distance += distance_between(third, second)
+#             angle+= angle_between([third[0]-second[0],third[1]-second[1]],[second[0]-first[0],second[1]-first[1]])
+#         angle = angle /( len(OTHER)-1)
+#         distance = distance /( len(OTHER)-2)
+#         heading = atan2(third[1] - second[1], third[0] - second[0]) + angle
+#         xy_estimate = (measurement[0] + distance * cos(heading), measurement[1] + distance * sin(heading))
+
+#     # You must return xy_estimate (x, y), and OTHER (even if it is None)
+#     # in this order for grading purposes.
+#     return xy_estimate, OTHER
 def estimate_next_pos(measurement, OTHER = None):
     """Estimate the next (x, y) position of the wandering Traxbot
     based on noisy (x, y) measurements."""
-    #if other = none this is the first time this is run.
-    #will be in the form: x,y,heading, distance, turning-angle
-    #based on tutorial here:
-    #http://nbviewer.ipython.org/github/rlabbe/Kalman-and-Bayesian-Filters-in-Python/blob/master/table_of_contents.ipynb
-    dimx = 4 #because if position and velocity in 2 diminsions, it will need to be 4
-    dimz = 2 #if there are only positions xy this should be 2
-
-    ###setting up the matrices
-    posx = measurement[0]
-    posy = measurement[1]
-    I = matrix([[1., 0., 0., 0.], #state transition function
-                [0., 1., 0., 0.],
-                [0., 0., 1., 0.],
-                [0., 0., 0., 1.]])
-    if OTHER == None: #first time this is running
+    """
+    OTHER VECTOR FORM:
+    [
+       [
+        X
+        Y
+       ]
+    ]
+    """
+    if OTHER == None:
         OTHER = []
-        x = matrix([[posx],[posy],[0],[0]])#this starts the initial measurement
-        P = I
+        OTHER.append(measurement)
+        xy_estimate = measurement
+    elif len(OTHER) == 1:
+        OTHER.append(measurement)
+        xy_estimate = measurement
     else:
-        x = OTHER[0]
-        P = OTHER[1]
-    Z = matrix([[posx],[posy]])#this starts the initial measurement
-    u = matrix([[0],[0],[0],[0]])
-    F = matrix([[1., 0., 1, 0.], #state transition function
-                [0., 1., 0., 1],
-                [0., 0., 1., 0.],
-                [0., 0., 0., 1.]])
-    H = matrix([[1,0,0,0],[0,1.,0,0]])#meansurement matrix
-    R = matrix([[.00001,0],[.00001,1.]])#uncertainty matrix
-    #I = matrix([[]]).identity(dimx)#identity matrix
+        OTHER.append(measurement)
+        first = OTHER[-3]
+        second = OTHER[-2]
+        third = OTHER[-1]
+        distance = distance_between(third, second)
+        angle = angle_between([third[0]-second[0],third[1]-second[1]],[second[0]-first[0],second[1]-first[1]])
+        heading = atan2(third[1] - second[1], third[0] - second[0]) + angle
+        xy_estimate = (measurement[0] + distance * cos(heading), measurement[1] + distance * sin(heading))
 
-    x,P = KalmanFilter(x,P,Z,u,F,H,R,I)
-        ##this xy estimate should be
-    OTHER = [x, P]
-    xy_estimate = (x.value[0][0], x.value[1][0])
     # You must return xy_estimate (x, y), and OTHER (even if it is None)
     # in this order for grading purposes.
     return xy_estimate, OTHER
+def angle_between(p1, p2):
+    x1,y1 = p1[0],p1[1]
+    x2,y2 = p2[0],p2[1]
+    return acos((x1*x2 + y1*y2) / (sqrt(x1**2 + y1**2) * sqrt(x2**2 + y2**2)))
 
 
+"""
+def angle_between(p1, p2):
+    x1,y1 = p1[0],p1[1]
+    x2,y2 = p2[0],p2[0]
+    dx = x2 - x1
+    dy = y2 - y1
+    rads = atan2(dy,dx)
+    rads %= 2*pi
+    degs = degrees(rads)
+    return rads
+"""
 
-# A helper function you may find useful.
+
 def distance_between(point1, point2):
     """Computes distance between point1 and point2. Points are (x, y) pairs."""
     x1, y1 = point1

@@ -217,14 +217,22 @@ def estimate_next_pos(measurement, OTHER = None):
         first = OTHER[-3]
         second = OTHER[-2]
         third = OTHER[-1]
+        p1_dx = second[0]-first[0]
+        p1_dy = second[1]-first[1]
+        p2_dx = third[0]-second[0]
+        p2_dy = third[1]-second[1]
         distance = distance_between(third, second)
-        angle = angle_between([third[0]-second[0],third[1]-second[1]],[second[0]-first[0],second[1]-first[1]])
-        heading = atan2(third[1] - second[1], third[0] - second[0]) + angle
-        xy_estimate = (measurement[0] + distance * cos(heading), measurement[1] + distance * sin(heading))
+        turn_angle = angle_between([p2_dx,p2_dy],[p1_dx,p1_dy])
+        heading = atan2(p2_dy,p2_dx) + turn_angle
+        est_x = measurement[0] + distance * cos(heading)
+        est_y = measurement[1] + distance * sin(heading)
+        xy_estimate = (est_x,est_y )
 
     # You must return xy_estimate (x, y), and OTHER (even if it is None)
     # in this order for grading purposes.
     return xy_estimate, OTHER
+
+#this calculates the angle between 2 points using the law of cosines
 def angle_between(p1, p2):
     x1,y1 = p1[0],p1[1]
     x2,y2 = p2[0],p2[1]

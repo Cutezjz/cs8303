@@ -1,98 +1,54 @@
 # ----------
-# Part Three
+# Part Four
 #
-# Now you'll actually track down and recover the runaway Traxbot.
-# In this step, your speed will be about twice as fast the runaway bot,
-# which means that your bot's distance parameter will be about twice that
-# of the runaway. You can move less than this parameter if you'd
-# like to slow down your bot near the end of the chase.
+# Again, you'll track down and recover the runaway Traxbot.
+# But this time, your speed will be about the same as the runaway bot.
+# This may require more careful planning than you used last time.
 #
 # ----------
 # YOUR JOB
 #
-# Complete the next_move function. This function will give you access to
-# the position and heading of your bot (the hunter); the most recent
-# measurement received from the runaway bot (the target), the max distance
-# your bot can move in a given timestep, and another variable, called
-# OTHER, which you can use to keep track of information.
-#
-# Your function will return the amount you want your bot to turn, the
-# distance you want your bot to move, and the OTHER variable, with any
-# information you want to keep track of.
+# Complete the next_move function, similar to how you did last time.
 #
 # ----------
 # GRADING
 #
-# We will make repeated calls to your next_move function. After
-# each call, we will move the hunter bot according to your instructions
-# and compare its position to the target bot's true position
-# As soon as the hunter is within 0.01 stepsizes of the target,
-# you will be marked correct and we will tell you how many steps it took
-# before your function successfully located the target bot.
-#
-# As an added challenge, try to get to the target bot as quickly as
-# possible.
+# Same as part 3. Again, try to catch the target in as few steps as possible.
 
 from robot import *
 from math import *
 from matrix import *
 import random
-
-#setting up the matrices for possible filter use
-I = matrix([[1., 0., 0., 0.], #state transition function
-            [0., 1., 0., 0.],
-            [0., 0., 1., 0.],
-            [0., 0., 0., 1.]])
-x = matrix([[0],[0],[0],[0]])#this starts the initial measurement
-Z = matrix([[0],[0]])
-u = matrix([[0],[0],[0],[0]]) #motion
-F = matrix([[1., 0., .1, 0.], #state transition function
-            [0., 1., 0., .1],
-            [0., 0., 1., 0.],
-            [0., 0., 0., 1.]])
-H = matrix([[1,0,0,0],[0,1.,0,0]])#meansurement matrix
-R = matrix([[.1,0],[0,.1]])#uncertainty matrix
-
-################
-
-def kalman_filter(x,P,measurements):
-    #code derived from lectures here:
-    #https://www.udacity.com/course/viewer#!/c-cs373/l-48723604/e-48724495/m-48687710
-    for i in range(len(measurements)):
-        #prediction
-        x = (F*x) + u
-        P = F * P * F.transpose()
-
-        #measurement update
-        Z = matrix([measurements[i]])
-        y  = Z.transpose() - (H*x) #z needs to be transposed
-        S = (H*P*H.transpose())+R
-        K = P*H.transpose()*S.inverse()
-        x = x + (K*y)
-        P = (I -(K*H))*P
-
-    return(x,P)
-
-#results from twiddle to min params
+visual = False
 gains = [   0.09000000000000001,    # p distance
             0.5100000000000009,     # p heading
             0.0010499999999999993,  #i distance
             0.0005,                 #i heading
             8.5275554301e-05,       #d distance
             -0.009999999999999995]  #d heading
-
-visual = False
 def next_move(hunter_position, hunter_heading, target_measurement, max_distance, OTHER = None):
     # This function will be called after each time the target moves.
 
     if OTHER == None:
         OTHER = {}
+        OTHER["hunter_positions"] = [hunter_position]
+        OTHER["hunter_headings"] = [hunter_heading]
+        OTHER["target_measurements"] = [target_measurement]
         OTHER["distance_integral"] =  0
         OTHER["heading_integral"] = 0
+        OTHER["previous_point"] = (0.0,0.0)
+        OTHER["previous_heading"] = 0
+        OTHER["distance_between_array"] = []
+    else:
+        OTHER["hunter_positions"].append(hunter_position)
+        OTHER["hunter_headings"].append(hunter_heading)
+        OTHER["target_measurements"].append(target_measurement)
 
-    next_position = target_measurement
+    predicted_position, OTHER = estimate_future_pos(target_measurement,7,OTHER)
+    next_position = predicted_position
     dx = next_position[0] - hunter_position[0]
     dy = next_position[1] - hunter_position[1]
+    print dx,dy
     aR = atan2(dy,dx)
     heading_error = angle_trunc(aR - hunter_heading)
     distance_error = distance_between(hunter_position,next_position)
@@ -112,21 +68,111 @@ def next_move(hunter_position, hunter_heading, target_measurement, max_distance,
     distance = gains[0] * distance_error + gains[2] * distance_guess - gains[4] * distance_difference
     turning =  gains[1] * heading_error + gains[3] * heading_guess + gains[5] * heading_difference
     return turning, distance, OTHER
+def mean(lists):
+    sums = 0
+    for i in range(len(lists)):
+        sums += lists[i]
+    return sums/len(lists)
 
+def estimate_future_pos(measurement,num_predicted_steps, OTHER = None):
+    """Estimate the next (x, y) position of the wandering Traxbot
+    based on noisy (x, y) measurements."""
+    """
+    OTHER VECTOR FORM:
+    [
+       previousPoint (x,y) # this is the previous measurement,
+       prev_heading (int) # this is the heading - the turn angle,
+       distance_between_array([])
+   ]
+    """
+    #going to set this section above
+    # if OTHER == None:
+    #     OTHER = {}
+    #     OTHER["previous_point"] = (0.0,0.0)
+    #     OTHER["previous_heading"] = 0
+    #     OTHER["distance_between_array"] = []
 
+    previous_heading = OTHER["previous_heading"]
+    previous_point = OTHER["previous_point"]#retrieving the previous point to use later
+    distance_between_array = OTHER["distance_between_array"]
 
+    dx = measurement[0] - previous_point[0]
+    dy = measurement[1] - previous_point[1]
+    aR = atan2(dy,dx)
+    distance_between_array.append(distance_between(previous_point,measurement))
+    future_distance = mean(distance_between_array)*num_predicted_steps
+
+    turn_angle = aR - previous_heading
+    heading = aR + turn_angle
+    est_x = measurement[0] + future_distance * cos(heading)
+    est_y = measurement[1] + future_distance * sin(heading)
+
+    OTHER["previous_point"] = measurement #storing the measurement as the previous point
+    OTHER["previous_heading"] = aR
+    OTHER["distance_between_array"] = distance_between_array
+    xy_estimate = (est_x,est_y )
+    # You must return xy_estimate (x, y), and OTHER (even if it is None)
+    # in this order for grading purposes.
+    return xy_estimate, OTHER
+
+#this calculates the angle between 2 points using the law of cosines
+def angle_between(p1, p2):
+    x1,y1 = p1[0],p1[1]
+    x2,y2 = p2[0],p2[1]
+    return acos((x1*x2 + y1*y2) / (sqrt(x1**2 + y1**2) * sqrt(x2**2 + y2**2)))
 
 def distance_between(point1, point2):
     """Computes distance between point1 and point2. Points are (x, y) pairs."""
     x1, y1 = point1
     x2, y2 = point2
     return sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
-if visual == True:
+if visual == False:
     def demo_grading(hunter_bot, target_bot, next_move_fcn, OTHER = None):
         """Returns True if your next_move_fcn successfully guides the hunter_bot
         to the target_bot. This function is here to help you understand how we
         will grade your submission."""
-        max_distance = 1.94 * target_bot.distance # 1.94 is an example. It will change.
+        max_distance = 0.98 * target_bot.distance # 0.98 is an example. It will change.
+        separation_tolerance = 0.02 * target_bot.distance # hunter must be within 0.02 step size to catch target
+        caught = False
+        ctr = 0
+
+        # We will use your next_move_fcn until we catch the target or time expires.
+        while not caught and ctr < 1000:
+
+            # Check to see if the hunter has caught the target.
+            hunter_position = (hunter_bot.x, hunter_bot.y)
+            target_position = (target_bot.x, target_bot.y)
+            separation = distance_between(hunter_position, target_position)
+            if separation < separation_tolerance:
+                print "You got it right! It took you ", ctr, " steps to catch the target."
+                caught = True
+
+            # The target broadcasts its noisy measurement
+            target_measurement = target_bot.sense()
+
+            # This is where YOUR function will be called.
+            turning, distance, OTHER = next_move_fcn(hunter_position, hunter_bot.heading, target_measurement, max_distance, OTHER)
+
+            # Don't try to move faster than allowed!
+            if distance > max_distance:
+                distance = max_distance
+
+            # We move the hunter according to your instructions
+            hunter_bot.move(turning, distance)
+
+            # The target continues its (nearly) circular motion.
+            target_bot.move_in_circle()
+
+            ctr += 1
+            if ctr >= 1000:
+                print "It took too many steps to catch the target."
+        return caught
+else:
+    def demo_grading(hunter_bot, target_bot, next_move_fcn, OTHER = None):
+        """Returns True if your next_move_fcn successfully guides the hunter_bot
+        to the target_bot. This function is here to help you understand how we
+        will grade your submission."""
+        max_distance = 0.98 * target_bot.distance # 0.98 is an example. It will change.
         separation_tolerance = 0.02 * target_bot.distance # hunter must be within 0.02 step size to catch target
         caught = False
         ctr = 0
@@ -144,7 +190,7 @@ if visual == True:
         broken_robot.color('green')
         broken_robot.resizemode('user')
         broken_robot.shapesize(0.3, 0.3, 0.3)
-        size_multiplier = 15.0 #change Size of animation
+        size_multiplier = 15.0 #change size of animation
         chaser_robot.hideturtle()
         chaser_robot.penup()
         chaser_robot.goto(hunter_bot.x*size_multiplier, hunter_bot.y*size_multiplier-100)
@@ -200,47 +246,7 @@ if visual == True:
             if ctr >= 1000:
                 print "It took too many steps to catch the target."
         return caught
-else:
-    def demo_grading(hunter_bot, target_bot, next_move_fcn, OTHER = None):
-        """Returns True if your next_move_fcn successfully guides the hunter_bot
-        to the target_bot. This function is here to help you understand how we
-        will grade your submission."""
-        max_distance = 1.94 * target_bot.distance # 1.94 is an example. It will change.
-        separation_tolerance = 0.02 * target_bot.distance # hunter must be within 0.02 step size to catch target
-        caught = False
-        ctr = 0
 
-        # We will use your next_move_fcn until we catch the target or time expires.
-        while not caught and ctr < 1000:
-
-            # Check to see if the hunter has caught the target.
-            hunter_position = (hunter_bot.x, hunter_bot.y)
-            target_position = (target_bot.x, target_bot.y)
-            separation = distance_between(hunter_position, target_position)
-            if separation < separation_tolerance:
-                print "You got it right! It took you ", ctr, " steps to catch the target."
-                caught = True
-
-            # The target broadcasts its noisy measurement
-            target_measurement = target_bot.sense()
-
-            # This is where YOUR function will be called.
-            turning, distance, OTHER = next_move_fcn(hunter_position, hunter_bot.heading, target_measurement, max_distance, OTHER)
-
-            # Don't try to move faster than allowed!
-            if distance > max_distance:
-                distance = max_distance
-
-            # We move the hunter according to your instructions
-            hunter_bot.move(turning, distance)
-
-            # The target continues its (nearly) circular motion.
-            target_bot.move_in_circle()
-
-            ctr += 1
-            if ctr >= 1000:
-                print "It took too many steps to catch the target."
-        return caught
 def angle_trunc(a):
     """This maps all angles to a domain of [-pi, pi]"""
     while a < 0.0:
@@ -280,7 +286,6 @@ def naive_next_move(hunter_position, hunter_heading, target_measurement, max_dis
 target = robot(0.0, 10.0, 0.0, 2*pi / 30, 1.5)
 measurement_noise = .05*target.distance
 target.set_noise(0.0, 0.0, measurement_noise)
-
 hunter = robot(-10.0, -10.0, 0.0)
 
 print demo_grading(hunter, target, next_move)

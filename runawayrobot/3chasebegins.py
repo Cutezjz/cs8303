@@ -91,8 +91,8 @@ def next_move(hunter_position, hunter_heading, target_measurement, max_distance,
         OTHER["hunter_positions"] = [hunter_position]
         OTHER["hunter_headings"] = [hunter_heading]
         OTHER["target_measurements"] = [target_measurement]
-        OTHER["distance_int_list"] =  [0]
-        OTHER["heading_int_list"] = [0]
+        OTHER["distance_integral"] =  0
+        OTHER["heading_integral"] = 0
         OTHER["distance_list"] = [0]
         OTHER["heading_list"] = [0]
         OTHER["within_limit"] = False
@@ -109,14 +109,14 @@ def next_move(hunter_position, hunter_heading, target_measurement, max_distance,
     distance_error = distance_between(hunter_position,next_position)
 
     if (distance_error < .001 * max_distance):
-        distance_guess = OTHER["distance_guess_list"][-1]
-        heading_guess = OTHER["heading_guess_list"][-1]
+        distance_guess = OTHER["distance_integral"]
+        heading_guess = OTHER["heading_integral"]
     else:
-        distance_guess = distance_error + OTHER["distance_guess_list"][-1]
-        heading_guess = heading_error + OTHER["heading_guess_list"][-1]
+        distance_guess = distance_error + OTHER["distance_integral"]
+        heading_guess = heading_error + OTHER["heading_integral"]
 
-    OTHER["distance_guess_list"].append(distance_guess)
-    OTHER["heading_guess_list"].append(heading_guess)
+    OTHER["distance_integral"]= distance_guess
+    OTHER["heading_integral"]= heading_guess
     OTHER["distance_list"].append(distance_error)
     OTHER["heading_list"].append(heading_error)
     distance_difference = OTHER["distance_guess_list"][-1] - distance_error
